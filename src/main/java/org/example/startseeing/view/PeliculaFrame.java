@@ -25,7 +25,7 @@ public class PeliculaFrame extends JFrame {
     private final PeliculaDAO peliculaDAO = new PeliculaDAO();
     private final CategoriaDAO categoriaDAO = new CategoriaDAO();
     private final DirectoresDAO directorDAO = new DirectoresDAO();
-    private final Usuario usuarioActual; // usuario logueado
+    private final Usuario usuarioActual;
 
     private JTextField txtId;
     private JTextField txtNombre;
@@ -33,17 +33,24 @@ public class PeliculaFrame extends JFrame {
     private JTextField txtEstrellas;
     private JComboBox<Categoria> cbCategoria;
     private JComboBox<Directores> cbDirector;
+
     private JTable tabla;
     private DefaultTableModel modeloTabla;
 
+    private JButton btnGuardar;
+    private JButton btnActualizar;
+    private JButton btnEliminar;
+    private JButton btnListar;
+
     public PeliculaFrame(Usuario usuario) {
         this.usuarioActual = usuario;
+
         setTitle("Gestión de Películas");
         setSize(800, 550);
         setDefaultCloseOperation(DISPOSE_ON_CLOSE);
         setLocationRelativeTo(null);
 
-        //Fondo con degradado
+        // Fondo con degradado
         JPanel fondo = new JPanel() {
             @Override
             protected void paintComponent(Graphics g) {
@@ -61,18 +68,17 @@ public class PeliculaFrame extends JFrame {
         fondo.setBorder(new EmptyBorder(15, 15, 15, 15));
         setContentPane(fondo);
 
-        //Título
+        // Título
         JLabel lblTitulo = new JLabel("Gestión de Películas", SwingConstants.CENTER);
         lblTitulo.setFont(new Font("Segoe UI", Font.BOLD, 22));
-        lblTitulo.setForeground(new Color(40, 40, 40));
         fondo.add(lblTitulo, BorderLayout.NORTH);
 
-        //Panel central (formulario + tabla)
+        // Panel central
         JPanel panelCentral = new JPanel(new BorderLayout(15, 15));
         panelCentral.setOpaque(false);
         fondo.add(panelCentral, BorderLayout.CENTER);
 
-        //Panel formulario
+        // Formulario
         JPanel panelFormulario = new JPanel(new GridLayout(6, 2, 10, 10));
         panelFormulario.setBackground(Color.WHITE);
         panelFormulario.setBorder(new CompoundBorder(
@@ -93,7 +99,7 @@ public class PeliculaFrame extends JFrame {
         txtAno = new JTextField();
         panelFormulario.add(txtAno);
 
-        panelFormulario.add(new JLabel("Estrellas (0-5):"));
+        panelFormulario.add(new JLabel("Estrellas (0 - 5):"));
         txtEstrellas = new JTextField();
         panelFormulario.add(txtEstrellas);
 
@@ -107,47 +113,42 @@ public class PeliculaFrame extends JFrame {
 
         panelCentral.add(panelFormulario, BorderLayout.NORTH);
 
-        //Tabla
+        // Tabla
         modeloTabla = new DefaultTableModel(
-                new Object[]{"ID", "Nombre", "Año", "Estrellas", "Categoría", "Director"}, 0);
+                new Object[]{"ID", "Nombre", "Año", "Estrellas", "Categoría", "Director"}, 0
+        );
         tabla = new JTable(modeloTabla);
         tabla.setRowHeight(25);
-        tabla.setFont(new Font("Segoe UI", Font.PLAIN, 13));
-        tabla.setGridColor(new Color(220, 220, 220));
 
         JTableHeader header = tabla.getTableHeader();
         header.setFont(new Font("Segoe UI", Font.BOLD, 14));
         header.setBackground(new Color(52, 152, 219));
         header.setForeground(Color.WHITE);
 
-        JScrollPane scrollPane = new JScrollPane(tabla);
-        panelCentral.add(scrollPane, BorderLayout.CENTER);
+        panelCentral.add(new JScrollPane(tabla), BorderLayout.CENTER);
 
-        //Panel botones
+        // Botones
         JPanel panelBotones = new JPanel(new FlowLayout(FlowLayout.CENTER, 15, 10));
         panelBotones.setOpaque(false);
         fondo.add(panelBotones, BorderLayout.SOUTH);
 
-        JButton btnGuardar = crearBoton("Guardar", new Color(46, 204, 113));
-        JButton btnActualizar = crearBoton("Actualizar", new Color(52, 152, 219));
-        JButton btnEliminar = crearBoton("Eliminar", new Color(231, 76, 60));
-        JButton btnListar = crearBoton("Listar", new Color(241, 196, 15));
+        btnGuardar = crearBoton("Guardar", new Color(46, 204, 113));
+        btnActualizar = crearBoton("Actualizar", new Color(52, 152, 219));
+        btnEliminar = crearBoton("Eliminar", new Color(231, 76, 60));
+        btnListar = crearBoton("Listar", new Color(241, 196, 15));
 
         panelBotones.add(btnGuardar);
         panelBotones.add(btnActualizar);
         panelBotones.add(btnEliminar);
         panelBotones.add(btnListar);
 
-        //Cargar combos
-        cargarCategorias();
-        cargarDirectores();
-
-        //Acciones CRUD
+        // Acciones
         btnGuardar.addActionListener(e -> guardar());
         btnActualizar.addActionListener(e -> actualizar());
         btnEliminar.addActionListener(e -> eliminar());
         btnListar.addActionListener(e -> listar());
 
+        // Eventos tabla
         tabla.getSelectionModel().addListSelectionListener(e -> {
             if (!e.getValueIsAdjusting() && tabla.getSelectedRow() >= 0) {
                 int fila = tabla.getSelectedRow();
@@ -155,56 +156,36 @@ public class PeliculaFrame extends JFrame {
                 txtNombre.setText(modeloTabla.getValueAt(fila, 1).toString());
                 txtAno.setText(modeloTabla.getValueAt(fila, 2).toString());
                 txtEstrellas.setText(modeloTabla.getValueAt(fila, 3).toString());
-                seleccionarComboCategoria(modeloTabla.getValueAt(fila, 4).toString());
-                seleccionarComboDirector(modeloTabla.getValueAt(fila, 5).toString());
+                seleccionarCategoria(modeloTabla.getValueAt(fila, 4).toString());
+                seleccionarDirector(modeloTabla.getValueAt(fila, 5).toString());
             }
         });
 
+        cargarCategorias();
+        cargarDirectores();
         listar();
+        aplicarPermisos();
     }
 
-    private JButton crearBoton(String texto, Color colorFondo) {
-        JButton boton = new JButton(texto);
-        boton.setFont(new Font("Segoe UI", Font.BOLD, 13));
-        boton.setBackground(colorFondo);
-        boton.setForeground(Color.WHITE);
-        boton.setFocusPainted(false);
-        boton.setBorderPainted(false);
-        boton.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        boton.setPreferredSize(new Dimension(110, 35));
+    private void aplicarPermisos() {
+        boolean esAdmin = usuarioActual.getRoles().stream()
+                .anyMatch(r -> r.getNombre().equalsIgnoreCase("ADMIN"));
 
-        // Efecto hover
-        boton.addMouseListener(new MouseAdapter() {
-            @Override
-            public void mouseEntered(MouseEvent e) {
-                boton.setBackground(colorFondo.darker());
-            }
+        boolean esEditor = usuarioActual.getRoles().stream()
+                .anyMatch(r -> r.getNombre().equalsIgnoreCase("EDITOR"));
 
-            @Override
-            public void mouseExited(MouseEvent e) {
-                boton.setBackground(colorFondo);
-            }
-        });
-        return boton;
+        boolean esLector = usuarioActual.getRoles().stream()
+                .anyMatch(r -> r.getNombre().equalsIgnoreCase("LECTOR"));
+
+        btnGuardar.setEnabled(esAdmin || esEditor);
+        btnActualizar.setEnabled(esAdmin || esEditor);
+        btnEliminar.setEnabled(esAdmin);
+        btnListar.setEnabled(esAdmin || esEditor || esLector);
     }
 
-    private void cargarCategorias() {
-        cbCategoria.removeAllItems();
-        List<Categoria> categorias = categoriaDAO.listar();
-        for (Categoria c : categorias) cbCategoria.addItem(c);
-    }
-
-    private void cargarDirectores() {
-        cbDirector.removeAllItems();
-        List<Directores> directores = directorDAO.listar();
-        for (Directores d : directores) cbDirector.addItem(d);
-    }
 
     private void guardar() {
-        if (txtNombre.getText().isEmpty() || txtAno.getText().isEmpty() || txtEstrellas.getText().isEmpty()) {
-            JOptionPane.showMessageDialog(this, "Complete todos los campos.");
-            return;
-        }
+        if (!validarFormulario()) return;
 
         Pelicula p = new Pelicula();
         p.setNombre(txtNombre.getText());
@@ -220,9 +201,10 @@ public class PeliculaFrame extends JFrame {
 
     private void actualizar() {
         if (txtId.getText().isEmpty()) {
-            JOptionPane.showMessageDialog(this, "Seleccione una película para actualizar.");
+            JOptionPane.showMessageDialog(this, "Seleccione una película.");
             return;
         }
+        if (!validarFormulario()) return;
 
         Pelicula p = new Pelicula();
         p.setId(Integer.parseInt(txtId.getText()));
@@ -241,10 +223,16 @@ public class PeliculaFrame extends JFrame {
         int fila = tabla.getSelectedRow();
         if (fila >= 0) {
             int id = (int) modeloTabla.getValueAt(fila, 0);
-            peliculaDAO.eliminar(id, usuarioActual.getUsername());
-            listar();
-        } else {
-            JOptionPane.showMessageDialog(this, "Seleccione una fila para eliminar.");
+            int confirm = JOptionPane.showConfirmDialog(
+                    this,
+                    "¿Eliminar esta película?",
+                    "Confirmar",
+                    JOptionPane.YES_NO_OPTION
+            );
+            if (confirm == JOptionPane.YES_OPTION) {
+                peliculaDAO.eliminar(id, usuarioActual.getUsername());
+                listar();
+            }
         }
     }
 
@@ -263,7 +251,38 @@ public class PeliculaFrame extends JFrame {
         }
     }
 
-    private void seleccionarComboCategoria(String nombre) {
+
+    private boolean validarFormulario() {
+        try {
+            int ano = Integer.parseInt(txtAno.getText());
+            double estrellas = Double.parseDouble(txtEstrellas.getText());
+
+            if (estrellas < 0 || estrellas > 5) {
+                JOptionPane.showMessageDialog(this, "Las estrellas deben estar entre 0 y 5.");
+                return false;
+            }
+            if (cbCategoria.getSelectedItem() == null || cbDirector.getSelectedItem() == null) {
+                JOptionPane.showMessageDialog(this, "Seleccione categoría y director.");
+                return false;
+            }
+        } catch (NumberFormatException e) {
+            JOptionPane.showMessageDialog(this, "Año y estrellas deben ser numéricos.");
+            return false;
+        }
+        return true;
+    }
+
+    private void cargarCategorias() {
+        cbCategoria.removeAllItems();
+        categoriaDAO.listar().forEach(cbCategoria::addItem);
+    }
+
+    private void cargarDirectores() {
+        cbDirector.removeAllItems();
+        directorDAO.listar().forEach(cbDirector::addItem);
+    }
+
+    private void seleccionarCategoria(String nombre) {
         for (int i = 0; i < cbCategoria.getItemCount(); i++) {
             if (cbCategoria.getItemAt(i).getNombreCategoria().equals(nombre)) {
                 cbCategoria.setSelectedIndex(i);
@@ -272,7 +291,7 @@ public class PeliculaFrame extends JFrame {
         }
     }
 
-    private void seleccionarComboDirector(String nombre) {
+    private void seleccionarDirector(String nombre) {
         for (int i = 0; i < cbDirector.getItemCount(); i++) {
             if (cbDirector.getItemAt(i).getNombre().equals(nombre)) {
                 cbDirector.setSelectedIndex(i);
@@ -288,6 +307,23 @@ public class PeliculaFrame extends JFrame {
         txtEstrellas.setText("");
         cbCategoria.setSelectedIndex(-1);
         cbDirector.setSelectedIndex(-1);
+    }
+
+    private JButton crearBoton(String texto, Color color) {
+        JButton b = new JButton(texto);
+        b.setBackground(color);
+        b.setForeground(Color.WHITE);
+        b.setFocusPainted(false);
+        b.setPreferredSize(new Dimension(110, 35));
+        b.addMouseListener(new MouseAdapter() {
+            public void mouseEntered(MouseEvent e) {
+                b.setBackground(color.darker());
+            }
+            public void mouseExited(MouseEvent e) {
+                b.setBackground(color);
+            }
+        });
+        return b;
     }
 
 

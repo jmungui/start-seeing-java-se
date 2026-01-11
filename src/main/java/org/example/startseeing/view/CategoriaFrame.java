@@ -19,7 +19,7 @@ import java.util.List;
 public class CategoriaFrame extends JFrame {
 
     private final CategoriaDAO categoriaDAO = new CategoriaDAO();
-    private final Usuario usuarioActual; // 🧍‍♂️ usuario logueado
+    private final Usuario usuarioActual;
 
     private JTextField txtId;
     private JTextField txtNombre;
@@ -27,15 +27,22 @@ public class CategoriaFrame extends JFrame {
     private JTable tablaCategorias;
     private DefaultTableModel modeloTabla;
 
-    //Constructor modificado para recibir el usuario actual
+
+    private JButton btnGuardar;
+    private JButton btnActualizar;
+    private JButton btnEliminar;
+    private JButton btnListar;
+
+    // Constructor
     public CategoriaFrame(Usuario usuario) {
         this.usuarioActual = usuario;
+
         setTitle("Gestión de Categorías");
         setSize(700, 500);
         setDefaultCloseOperation(DISPOSE_ON_CLOSE);
         setLocationRelativeTo(null);
 
-        //Fondo con degradado
+        // Fondo con degradado
         JPanel fondo = new JPanel() {
             @Override
             protected void paintComponent(Graphics g) {
@@ -53,20 +60,19 @@ public class CategoriaFrame extends JFrame {
         fondo.setBorder(new EmptyBorder(15, 15, 15, 15));
         setContentPane(fondo);
 
-        //Título principal
+        // Título
         JLabel lblTitulo = new JLabel("Gestión de Categorías", SwingConstants.CENTER);
         lblTitulo.setFont(new Font("Segoe UI", Font.BOLD, 22));
         lblTitulo.setForeground(new Color(40, 40, 40));
         fondo.add(lblTitulo, BorderLayout.NORTH);
 
-        //Panel principal (formulario + tabla)
+        // Panel central
         JPanel panelCentral = new JPanel(new BorderLayout(15, 15));
         panelCentral.setOpaque(false);
         fondo.add(panelCentral, BorderLayout.CENTER);
 
-        //Panel del formulario
+        // Formulario
         JPanel panelFormulario = new JPanel(new GridLayout(3, 2, 10, 10));
-        panelFormulario.setOpaque(true);
         panelFormulario.setBackground(Color.WHITE);
         panelFormulario.setBorder(new CompoundBorder(
                 new LineBorder(new Color(180, 180, 180), 1, true),
@@ -88,7 +94,7 @@ public class CategoriaFrame extends JFrame {
 
         panelCentral.add(panelFormulario, BorderLayout.NORTH);
 
-        //Tabla de categorías
+        // Tabla
         modeloTabla = new DefaultTableModel(new Object[]{"ID", "Nombre", "Clasificación"}, 0);
         tablaCategorias = new JTable(modeloTabla);
         tablaCategorias.setRowHeight(25);
@@ -100,28 +106,27 @@ public class CategoriaFrame extends JFrame {
         header.setBackground(new Color(52, 152, 219));
         header.setForeground(Color.WHITE);
 
-        JScrollPane scrollPane = new JScrollPane(tablaCategorias);
-        panelCentral.add(scrollPane, BorderLayout.CENTER);
+        panelCentral.add(new JScrollPane(tablaCategorias), BorderLayout.CENTER);
 
-        //Panel inferior de botones
+        // Panel de botones
         JPanel panelBotones = new JPanel(new FlowLayout(FlowLayout.CENTER, 15, 10));
         panelBotones.setOpaque(false);
         fondo.add(panelBotones, BorderLayout.SOUTH);
 
-        JButton btnGuardar = crearBoton("Guardar", new Color(46, 204, 113));
-        JButton btnActualizar = crearBoton("Actualizar", new Color(52, 152, 219));
-        JButton btnEliminar = crearBoton("Eliminar", new Color(231, 76, 60));
-        JButton btnListar = crearBoton("Listar", new Color(241, 196, 15));
+        btnGuardar = crearBoton("Guardar", new Color(46, 204, 113));
+        btnActualizar = crearBoton("Actualizar", new Color(52, 152, 219));
+        btnEliminar = crearBoton("Eliminar", new Color(231, 76, 60));
+        btnListar = crearBoton("Listar", new Color(241, 196, 15));
 
         panelBotones.add(btnGuardar);
         panelBotones.add(btnActualizar);
         panelBotones.add(btnEliminar);
         panelBotones.add(btnListar);
 
-        //Acciones CRUD con bitácora automática
+        // Acciones
         btnGuardar.addActionListener(e -> {
             if (txtNombre.getText().isEmpty() || txtClasificacion.getText().isEmpty()) {
-                JOptionPane.showMessageDialog(this, "Por favor complete todos los campos.");
+                JOptionPane.showMessageDialog(this, "Complete todos los campos.");
                 return;
             }
             Categoria c = new Categoria();
@@ -132,25 +137,11 @@ public class CategoriaFrame extends JFrame {
             listarCategorias();
         });
 
-        btnListar.addActionListener(e -> listarCategorias());
-
-        btnEliminar.addActionListener(e -> {
-            int fila = tablaCategorias.getSelectedRow();
-            if (fila >= 0) {
-                int id = (int) modeloTabla.getValueAt(fila, 0);
-                categoriaDAO.eliminar(id, usuarioActual.getUsername());
-                listarCategorias();
-            } else {
-                JOptionPane.showMessageDialog(this, "Seleccione una fila para eliminar.");
-            }
-        });
-
         btnActualizar.addActionListener(e -> {
             if (txtId.getText().isEmpty()) {
-                JOptionPane.showMessageDialog(this, "Seleccione una categoría de la tabla para actualizar.");
+                JOptionPane.showMessageDialog(this, "Seleccione una categoría.");
                 return;
             }
-
             Categoria c = new Categoria();
             c.setId(Integer.parseInt(txtId.getText()));
             c.setNombreCategoria(txtNombre.getText());
@@ -160,7 +151,19 @@ public class CategoriaFrame extends JFrame {
             listarCategorias();
         });
 
-        //Selección en la tabla
+        btnEliminar.addActionListener(e -> {
+            int fila = tablaCategorias.getSelectedRow();
+            if (fila >= 0) {
+                int id = (int) modeloTabla.getValueAt(fila, 0);
+                categoriaDAO.eliminar(id, usuarioActual.getUsername());
+                listarCategorias();
+            } else {
+                JOptionPane.showMessageDialog(this, "Seleccione una fila.");
+            }
+        });
+
+        btnListar.addActionListener(e -> listarCategorias());
+
         tablaCategorias.getSelectionModel().addListSelectionListener(e -> {
             if (!e.getValueIsAdjusting() && tablaCategorias.getSelectedRow() >= 0) {
                 int fila = tablaCategorias.getSelectedRow();
@@ -171,6 +174,25 @@ public class CategoriaFrame extends JFrame {
         });
 
         listarCategorias();
+
+        aplicarPermisos();
+    }
+
+
+    private void aplicarPermisos() {
+        boolean esAdmin = usuarioActual.getRoles().stream()
+                .anyMatch(r -> r.getNombre().equalsIgnoreCase("ADMIN"));
+
+        boolean esEditor = usuarioActual.getRoles().stream()
+                .anyMatch(r -> r.getNombre().equalsIgnoreCase("EDITOR"));
+
+        boolean esLector = usuarioActual.getRoles().stream()
+                .anyMatch(r -> r.getNombre().equalsIgnoreCase("LECTOR"));
+
+        btnGuardar.setEnabled(esAdmin || esEditor);
+        btnActualizar.setEnabled(esAdmin || esEditor);
+        btnEliminar.setEnabled(esAdmin);
+        btnListar.setEnabled(esAdmin || esEditor || esLector);
     }
 
     private JButton crearBoton(String texto, Color colorFondo) {
@@ -201,7 +223,11 @@ public class CategoriaFrame extends JFrame {
         modeloTabla.setRowCount(0);
         List<Categoria> categorias = categoriaDAO.listar();
         for (Categoria c : categorias) {
-            modeloTabla.addRow(new Object[]{c.getId(), c.getNombreCategoria(), c.getClasificacion()});
+            modeloTabla.addRow(new Object[]{
+                    c.getId(),
+                    c.getNombreCategoria(),
+                    c.getClasificacion()
+            });
         }
     }
 

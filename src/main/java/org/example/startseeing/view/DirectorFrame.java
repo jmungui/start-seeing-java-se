@@ -3,6 +3,7 @@ package org.example.startseeing.view;
 import org.example.startseeing.dao.DirectoresDAO;
 import org.example.startseeing.entity.Directores;
 import org.example.startseeing.entity.Usuario;
+import org.example.startseeing.render.BooleanSiNoRenderer;
 
 import javax.swing.*;
 import javax.swing.border.CompoundBorder;
@@ -17,8 +18,9 @@ import java.util.List;
 
 
 public class DirectorFrame extends JFrame {
+
     private final DirectoresDAO directorDAO = new DirectoresDAO();
-    private final Usuario usuarioActual; // usuario logueado
+    private final Usuario usuarioActual;
 
     private JTextField txtId;
     private JTextField txtNombre;
@@ -27,14 +29,20 @@ public class DirectorFrame extends JFrame {
     private JTable tablaDirectores;
     private DefaultTableModel modeloTabla;
 
+    private JButton btnGuardar;
+    private JButton btnActualizar;
+    private JButton btnEliminar;
+    private JButton btnListar;
+
     public DirectorFrame(Usuario usuario) {
         this.usuarioActual = usuario;
+
         setTitle("Gestión de Directores");
         setSize(700, 500);
         setDefaultCloseOperation(DISPOSE_ON_CLOSE);
         setLocationRelativeTo(null);
 
-        //Fondo con degradado suave
+        // Fondo con degradado
         JPanel fondo = new JPanel() {
             @Override
             protected void paintComponent(Graphics g) {
@@ -52,20 +60,19 @@ public class DirectorFrame extends JFrame {
         fondo.setBorder(new EmptyBorder(15, 15, 15, 15));
         setContentPane(fondo);
 
-        //Título principal
+        // Título
         JLabel lblTitulo = new JLabel("Gestión de Directores", SwingConstants.CENTER);
         lblTitulo.setFont(new Font("Segoe UI", Font.BOLD, 22));
         lblTitulo.setForeground(new Color(40, 40, 40));
         fondo.add(lblTitulo, BorderLayout.NORTH);
 
-        //Panel central (formulario + tabla)
+        // Panel central
         JPanel panelCentral = new JPanel(new BorderLayout(15, 15));
         panelCentral.setOpaque(false);
         fondo.add(panelCentral, BorderLayout.CENTER);
 
-        //Panel del formulario
+        // Formulario
         JPanel panelFormulario = new JPanel(new GridLayout(4, 2, 10, 10));
-        panelFormulario.setOpaque(true);
         panelFormulario.setBackground(Color.WHITE);
         panelFormulario.setBorder(new CompoundBorder(
                 new LineBorder(new Color(180, 180, 180), 1, true),
@@ -92,43 +99,48 @@ public class DirectorFrame extends JFrame {
 
         panelCentral.add(panelFormulario, BorderLayout.NORTH);
 
-        //Tabla de directores
-        modeloTabla = new DefaultTableModel(new Object[]{"ID", "Nombre", "País", "Oscar"}, 0);
+        // Tabla
+        modeloTabla = new DefaultTableModel(
+                new Object[]{"ID", "Nombre", "País", "Oscar"}, 0
+        );
         tablaDirectores = new JTable(modeloTabla);
         tablaDirectores.setRowHeight(25);
         tablaDirectores.setFont(new Font("Segoe UI", Font.PLAIN, 13));
         tablaDirectores.setGridColor(new Color(220, 220, 220));
+
+        tablaDirectores.getColumnModel()
+                .getColumn(3) // columna Oscar
+                .setCellRenderer(new BooleanSiNoRenderer());
 
         JTableHeader header = tablaDirectores.getTableHeader();
         header.setFont(new Font("Segoe UI", Font.BOLD, 14));
         header.setBackground(new Color(52, 152, 219));
         header.setForeground(Color.WHITE);
 
-        JScrollPane scrollPane = new JScrollPane(tablaDirectores);
-        panelCentral.add(scrollPane, BorderLayout.CENTER);
+        panelCentral.add(new JScrollPane(tablaDirectores), BorderLayout.CENTER);
 
-        //Panel inferior (botones)
+        // Panel botones
         JPanel panelBotones = new JPanel(new FlowLayout(FlowLayout.CENTER, 15, 10));
         panelBotones.setOpaque(false);
         fondo.add(panelBotones, BorderLayout.SOUTH);
 
-        JButton btnGuardar = crearBoton("Guardar", new Color(46, 204, 113));
-        JButton btnActualizar = crearBoton("Actualizar", new Color(52, 152, 219));
-        JButton btnEliminar = crearBoton("Eliminar", new Color(231, 76, 60));
-        JButton btnListar = crearBoton("Listar", new Color(241, 196, 15));
+        btnGuardar = crearBoton("Guardar", new Color(46, 204, 113));
+        btnActualizar = crearBoton("Actualizar", new Color(52, 152, 219));
+        btnEliminar = crearBoton("Eliminar", new Color(231, 76, 60));
+        btnListar = crearBoton("Listar", new Color(241, 196, 15));
 
         panelBotones.add(btnGuardar);
         panelBotones.add(btnActualizar);
         panelBotones.add(btnEliminar);
         panelBotones.add(btnListar);
 
-        // Acciones CRUD
+        // Acciones
         btnGuardar.addActionListener(e -> guardar());
         btnActualizar.addActionListener(e -> actualizar());
         btnEliminar.addActionListener(e -> eliminar());
         btnListar.addActionListener(e -> listar());
 
-        // Selección en la tabla
+        // Selección tabla
         tablaDirectores.getSelectionModel().addListSelectionListener(e -> {
             if (!e.getValueIsAdjusting() && tablaDirectores.getSelectedRow() >= 0) {
                 int fila = tablaDirectores.getSelectedRow();
@@ -140,9 +152,27 @@ public class DirectorFrame extends JFrame {
         });
 
         listar();
+
+        aplicarPermisos();
     }
 
-    // Crear botón con estilo y hover
+    private void aplicarPermisos() {
+        boolean esAdmin = usuarioActual.getRoles().stream()
+                .anyMatch(r -> r.getNombre().equalsIgnoreCase("ADMIN"));
+
+        boolean esEditor = usuarioActual.getRoles().stream()
+                .anyMatch(r -> r.getNombre().equalsIgnoreCase("EDITOR"));
+
+        boolean esLector = usuarioActual.getRoles().stream()
+                .anyMatch(r -> r.getNombre().equalsIgnoreCase("LECTOR"));
+
+        btnGuardar.setEnabled(esAdmin || esEditor);
+        btnActualizar.setEnabled(esAdmin || esEditor);
+        btnEliminar.setEnabled(esAdmin);
+        btnListar.setEnabled(esAdmin || esEditor || esLector);
+    }
+
+    // Botón estilizado
     private JButton crearBoton(String texto, Color colorFondo) {
         JButton boton = new JButton(texto);
         boton.setFont(new Font("Segoe UI", Font.BOLD, 13));
@@ -164,14 +194,13 @@ public class DirectorFrame extends JFrame {
                 boton.setBackground(colorFondo);
             }
         });
-
         return boton;
     }
 
-    // ===== MÉTODOS CRUD =====
+    // CRUD
     private void guardar() {
         if (txtNombre.getText().isEmpty()) {
-            JOptionPane.showMessageDialog(this, "El nombre es obligatorio.", "Advertencia", JOptionPane.WARNING_MESSAGE);
+            JOptionPane.showMessageDialog(this, "El nombre es obligatorio.");
             return;
         }
         Directores d = new Directores();
@@ -185,7 +214,7 @@ public class DirectorFrame extends JFrame {
 
     private void actualizar() {
         if (txtId.getText().isEmpty()) {
-            JOptionPane.showMessageDialog(this, "Seleccione un director para actualizar.");
+            JOptionPane.showMessageDialog(this, "Seleccione un director.");
             return;
         }
         Directores d = new Directores();
@@ -202,16 +231,18 @@ public class DirectorFrame extends JFrame {
         int fila = tablaDirectores.getSelectedRow();
         if (fila >= 0) {
             int id = (int) modeloTabla.getValueAt(fila, 0);
-            int confirm = JOptionPane.showConfirmDialog(this,
+            int confirm = JOptionPane.showConfirmDialog(
+                    this,
                     "¿Está seguro de eliminar este director?",
-                    "Confirmar eliminación",
-                    JOptionPane.YES_NO_OPTION);
+                    "Confirmar",
+                    JOptionPane.YES_NO_OPTION
+            );
             if (confirm == JOptionPane.YES_OPTION) {
                 directorDAO.eliminar(id, usuarioActual.getUsername());
                 listar();
             }
         } else {
-            JOptionPane.showMessageDialog(this, "Seleccione una fila para eliminar.");
+            JOptionPane.showMessageDialog(this, "Seleccione una fila.");
         }
     }
 
@@ -219,7 +250,12 @@ public class DirectorFrame extends JFrame {
         modeloTabla.setRowCount(0);
         List<Directores> directores = directorDAO.listar();
         for (Directores d : directores) {
-            modeloTabla.addRow(new Object[]{d.getId(), d.getNombre(), d.getPaisOrigen(), d.isOscar()});
+            modeloTabla.addRow(new Object[]{
+                    d.getId(),
+                    d.getNombre(),
+                    d.getPaisOrigen(),
+                    d.isOscar()
+            });
         }
     }
 
